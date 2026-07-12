@@ -4,11 +4,11 @@ Workspace-wide preferences (writing style, project isolation, calendar rules, no
 
 **Project isolation.** This is a **personal** project — JJ-personal / Haplos only. Never put HD or FCO content here. If a project ever needs HD or FCO material, it does not belong in personal `Projects/` — it lives on the firewalled HD/FCO machine.
 
-## Project kickoff — start with the master plan
+## Repo layout
 
-Every project begins with the `jj-master-plan` adversarial loop (Claude drafts → Codex critiques → Claude rewrites, 2.5 rounds). The `jj-new-project` skill runs this automatically at scaffold time and writes the hardened plan into `04-action-plan/` (phase-by-phase steps, the `## Parallel vs Sequential Execution` section, and open questions) plus a project-specific rewrite of this file with the `{{…}}` placeholders filled.
-
-If this project was created some other way, run `/master-plan` against it before doing real work — read `04-action-plan/` first, then execute. Re-run the loop whenever the plan goes stale or the scope shifts.
+Each Kaggle competition lives in its own subfolder under `competitions/`, self-contained
+with its data, notebooks, models, and submission pipeline. Use the `kaggle` CLI to pull
+competition data and submit predictions.
 
 ## The goal in one paragraph
 
@@ -21,13 +21,13 @@ If this project was created some other way, run `/master-plan` against it before
 ## Folder structure
 
 ```
-00-overview/             The goal, the decision to make, deadline, key numbers, links to source briefs.
-01-research/             Sources and notes. Follow ~/.claude/rules/high-value-research-sources.md — primaries first, cite the tier. Web research uses Playwright in HEADED mode (see Working conventions).
-02-data-and-documents/   PDFs, CSVs, exports, official docs, screenshots.
-03-financials/           Cost/benefit, NPV / marginal-value math, budget. (Optional — delete if there's no money angle.)
-04-action-plan/          The hardened plan (from jj-master-plan), decisions, next steps, and the Kanban task list for this project.
-05-deliverables/         Final outputs: letters, filings, presentations, summaries.
+competitions/            One subfolder per Kaggle competition, each self-contained.
+  TitanicMachineLearningFromDisaster/
+  LLMDetectAIGeneratedText/
 ```
+
+Each competition folder holds its own data, notebooks, models, and submission
+pipeline. Add a new competition by creating a new subfolder under `competitions/`.
 
 Root files: `README.md` (quick reference — goal, anchor card, deadline), `TASK.md` (the
 executed-task log — see below), this `CLAUDE.md`, and the project's own `.claude/` config
