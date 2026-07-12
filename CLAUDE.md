@@ -10,6 +10,12 @@ Each Kaggle competition lives in its own subfolder under `competitions/`, self-c
 with its data, notebooks, models, and submission pipeline. Use the `kaggle` CLI to pull
 competition data and submit predictions.
 
+## Project rules
+
+| Rule | File | Applies to |
+|---|---|---|
+| **Branch → PR, never commit to `main`** — every change ships on a feature branch and a reviewed pull request. | @.claude/rules/branch-and-pr.md | Every commit in this repo. |
+
 ## The goal in one paragraph
 
 {{What this project is and why it matters. The outcome that means "done". Frame the stakes in opportunity cost / marginal value where money or time is involved.}}
