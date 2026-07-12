@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(git status:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "mcp__plugin_playwright_playwright__*",
+      "mcp__plugin_context7_context7__*",
+      "mcp__github__*"
+    ],
+    "deny": [
+      "Bash(rm -rf:*)",
+      "Bash(git push:*)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/kanban-obsidian-sync-check.sh",
+            "timeout": 10,
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}
