@@ -225,10 +225,22 @@ def main():
             idc = cfg["data"].get("id_column")
             ids = test[idc] if idc and idc in test.columns else pd.Series(range(len(test)), name="id")
             Xt = test.drop(columns=[c for c in [idc, cfg["data"]["target"]] if c in test.columns])
-            if task == "classification" and hasattr(est, "predict_proba"):
+            # Probability-scored metrics (AUC, log loss, avg precision) want the
+            # positive-class probability; label-scored metrics (accuracy, f1) want
+            # hard class labels. Emitting probabilities for an accuracy competition
+            # scores 0 — the submission column must be 0/1.
+            proba_metrics = {"roc_auc", "neg_log_loss", "average_precision",
+                             "roc_auc_ovr", "roc_auc_ovo", "neg_brier_score"}
+            wants_proba = str(metric).lower() in proba_metrics
+            if (task == "classification" and wants_proba
+                    and hasattr(est, "predict_proba")):
                 proba = est.predict_proba(Xt)
                 pred = proba[:, 1] if proba.shape[1] == 2 else est.predict(Xt)
             else:
+                # TODO(threshold-opt): for label metrics on binary tasks, tune the
+                # decision cutoff on out-of-fold / holdout predictions to maximize the
+                # competition metric instead of the model's fixed 0.5. Tracked as a
+                # future enhancement. For now, use the model's default class labels.
                 pred = est.predict(Xt)
             if le is not None and pred.ndim == 1 and pred.dtype.kind in "iu":
                 pred = le.inverse_transform(pred)

@@ -1,0 +1,14 @@
+competition_name: titanic
+data:
+  train_path: ./data/train.csv
+  test_path: ./data/test.csv
+  target: Survived
+  id_column: PassengerId
+  task: classification
+evaluation: {metric: accuracy, cv_folds: 5, holdout_fraction: 0.2, random_state: 42}
+loop: {n_loops: 1, run_dir: ./kaggle_run}
+training: {max_train_seconds_per_fit: 60, n_jobs: -1}
+optimization: {top_k_models: 3, optuna_trials: 15, optuna_timeout_s: 300}
+ensembling: {top_m_models: 5, methods: [voting, blending, stacking]}
+mlflow: {tracking_uri: null}
+champion: {n_finalists: 5}
