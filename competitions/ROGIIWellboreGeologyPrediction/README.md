@@ -14,12 +14,31 @@ reference log (typewell). Lower RMSE wins.
 
 ## Status
 
-- [ ] **Rules accepted / competition joined**. REQUIRED before data download or submit. One
-      manual click on the website (`kaggle` CLI can't accept rules). See "Join" below.
-- [ ] Data downloaded to `data/` (blocked on join. 403 until then)
+- [x] **Rules accepted / competition joined**
+- [x] Data downloaded to `data/` (773 train wells, 3 visible test wells; real ~200-well test
+      set is swapped in when the notebook reruns)
 - [ ] EDA on well geometry + logs
-- [ ] Baseline model + local CV
+- [x] Baseline model + local CV (Stage 2 linear prior. see result below, not competitive yet)
 - [ ] First notebook submission
+
+## Baseline result (Stage 2. per-well linear prior `tvt ~ MD + Z`)
+
+`src/baseline.py` fits `tvt = a*MD + b*Z + c` per well on that well's own known rows
+(`TVT_input` not null), then predicts that same well's real evaluation zone (`TVT_input`
+null). no synthetic masking; every train well already carries its own real eval zone, so
+this is the actual test-time procedure. Run: `PYTHONPATH=src python3 src/baseline.py`.
+
+**Overall local RMSE: 67.09** (median per-well: 33.07) vs. the public LB leader's ~4.86.
+Not competitive. confirms the forum consensus (`context/04-discussion-intel.md`): a flat
+linear/tabular fit plateaus hard. Root cause, confirmed by inspecting the worst well
+(`4a335117`, RMSE 410): the eval zone is a long extrapolation. known zone spans ~1,700 ft of
+MD, the eval zone spans ~5,000 ft beyond it. so a straight-line fit blows up wherever the
+well crosses a fault or dip. Best wells (RMSE ~1.5-2.5) are ones where the geology stays
+flat clear through the eval zone; worst wells (RMSE 280-410) hit structural breaks.
+
+**Verdict:** pipeline is proven end-to-end (real per-well fit -> real eval-zone scoring), but
+the model itself needs the typewell/GR alignment (Stage 3) before it's submission-worthy.
+a linear-only submission would score far off the leaderboard.
 
 ## Join (one-time, manual. unblocks everything else)
 
@@ -70,6 +89,6 @@ SUBMISSIONS.md  leaderboard-score log (create on first submit)
 
 | Date | Approach | Local CV RMSE | Public LB | Notes |
 |---|---|---|---|---|
-|. |. |. |. | not started |
+| 2026-07-13 | Per-well linear `tvt ~ MD + Z` (Stage 2 baseline) | 67.09 (median 33.07) | not submitted | Pipeline proven end-to-end; not competitive. Long extrapolation into eval zone breaks on faults. Next: Stage 3 typewell/GR alignment. |
 
 Anchor Kanban card: TBD (create on the JJ board via jj-kanban).
