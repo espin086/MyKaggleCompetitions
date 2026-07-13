@@ -110,6 +110,13 @@ Run these from the competition folder (`cd competitions/<Name>`).
   the `kaggle competitions submit -f ...` path does NOT apply — the submission artifact is a
   committed Kaggle Notebook. The local repo is for development + local CV only; port the final
   pipeline into a self-contained notebook (preload any weights as a Kaggle Dataset).
+  - **The competition-data mount path is `/kaggle/input/competitions/<slug>/`**, NOT
+    `/kaggle/input/<slug>/` — that second form is where an *attached Dataset* lands, and a
+    Code Competition's own data is mounted under the `competitions/` subpath instead (confirmed
+    from a live Kaggle session's own `os.walk('/kaggle/input')` output on ROGII). Write the
+    notebook's path-detection to check `/kaggle/input/competitions/<slug>/` first, and always
+    have JJ paste the actual `os.walk` output from a real Kaggle session before trusting a
+    guessed path — this bit us once already.
 - **Accept the competition rules on the website first** — `submit`/`download` return `403`
   until the rules are accepted in the browser for that competition. Surface this to JJ; the CLI
   can't click the accept button.
