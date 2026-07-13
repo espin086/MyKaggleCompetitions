@@ -35,6 +35,24 @@ competitions/            One subfolder per Kaggle competition, each self-contain
 Each competition folder holds its own data, notebooks, models, and submission
 pipeline. Add a new competition by creating a new subfolder under `competitions/`.
 
+### `notebooks/` — the explainable notebook history (per competition)
+
+Every `kaggle-ml-loop` run ends by auto-generating two **executed** Jupyter notebooks into
+`competitions/<Name>/notebooks/` via `scripts/build_notebooks.py`:
+
+- `eda_<competition>_<YYYYMMDD-HHMM>.ipynb` — professional seaborn EDA (target balance,
+  univariate/bivariate, correlation, engineered-feature survival previews).
+- `champion_<competition>_<YYYYMMDD-HHMM>.ipynb` — what the MLflow experiments taught, the
+  cross-loop score trajectory, and how the champion reads the data (permutation + native
+  importance).
+
+Rules: notebooks are **git-tracked** (durable history, not run artifacts — `kaggle_run/` is
+ignored, `notebooks/` is not); every run produces a **new timestamped pair** (never
+overwritten); `notebooks/INDEX.md` logs one row per run; and each `SUBMISSIONS.md` row
+references the run's notebook pair. Both notebooks carry a top links block (datasets, config,
+run artifacts) plus the local **MLflow UI** command + `http://127.0.0.1:5000`. Full spec:
+`.claude/skills/kaggle-ml-loop/references/notebook-conventions.md`.
+
 Root files: `README.md` (quick reference — goal, anchor card, deadline), `TASK.md` (the
 executed-task log — see below), this `CLAUDE.md`, and the project's own `.claude/` config
 (see below).
