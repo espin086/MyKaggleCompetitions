@@ -19,7 +19,8 @@ reference log (typewell). Lower RMSE wins.
       set is swapped in when the notebook reruns)
 - [ ] EDA on well geometry + logs
 - [x] Baseline model + local CV (Stage 2 linear prior. see result below, not competitive yet)
-- [ ] First notebook submission
+- [x] Submission notebook built + executed locally (`notebooks/submission.ipynb`)
+- [ ] First notebook submission actually pushed to Kaggle for a public score
 
 ## Baseline result (Stage 2. per-well linear prior `tvt ~ MD + Z`)
 
@@ -39,6 +40,33 @@ flat clear through the eval zone; worst wells (RMSE 280-410) hit structural brea
 **Verdict:** pipeline is proven end-to-end (real per-well fit -> real eval-zone scoring), but
 the model itself needs the typewell/GR alignment (Stage 3) before it's submission-worthy.
 a linear-only submission would score far off the leaderboard.
+
+## Submission notebook
+
+`notebooks/submission.ipynb` is the actual submission artifact for this **Code Competition**
+(rules require submitting a Notebook, not a CLI file-upload). It's self-contained: same
+Stage 2 per-well linear fit as `src/baseline.py`, no internet access needed, auto-detects
+Kaggle's mounted input path (`/kaggle/input/rogii-wellbore-geology-prediction/`) vs. this
+repo's local `../data/` for local testing, and writes `submission.csv` after asserting the
+id set exactly matches `sample_submission.csv` with no NaNs.
+
+**Verified locally** (executed end-to-end with `jupyter nbconvert --execute`, output saved
+at `submissions/submission_stage2_linear.csv`): 14,151 rows, ids match sample_submission
+exactly, `tvt` range ~11,589-12,216 (sane, no NaNs). This is the same non-competitive Stage 2
+baseline (local RMSE 67.09) - it locks the submit pipeline, not a leaderboard attempt.
+
+### To actually submit on Kaggle
+
+1. Upload `notebooks/submission.ipynb` as a new Kaggle Notebook, attach the competition
+   dataset (`rogii-wellbore-geology-prediction`) as input.
+2. **Turn internet off** in notebook settings (required by the rules).
+3. Run all cells (`Save & Run All`) - it writes `submission.csv` in the Kaggle output.
+4. Click **Submit to Competition** from the notebook's Output tab.
+5. Read the score back with `kaggle competitions submissions -c rogii-wellbore-geology-prediction`
+   and log it in the Experiment log below - don't report a number the CLI hasn't returned.
+
+You get 5 submissions/day - this pipeline-proving baseline is a fine use of one of today's,
+but save most of them for after Stage 3 (typewell/GR alignment) actually moves the needle.
 
 ## Join (one-time, manual. unblocks everything else)
 
