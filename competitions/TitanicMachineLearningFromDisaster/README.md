@@ -44,13 +44,16 @@ python src/submit.py "v1: gradient boosting + engineered features"
 ```
 
 Submits `submissions/submission.csv`, polls for the public score, and appends a row to
-`SUBMISSIONS.md`. Requires Kaggle auth (`~/.kaggle/kaggle.json`) and the competition rules
-accepted on the website. Manual equivalent:
+`SUBMISSIONS.md`. Requires Kaggle auth and the competition rules accepted on the website.
+Manual equivalent:
 
 ```
 kaggle competitions submit -c titanic -f submissions/submission.csv -m "<approach>"
 kaggle competitions submissions -c titanic
 ```
+
+> Auth note: the `KGAT_` API token needs kaggle CLI >= 1.8.0 (written to `~/.kaggle/access_token`).
+> The legacy `~/.kaggle/kaggle.json` (username + hex key) works on older CLIs.
 
 ## Layout
 
@@ -65,12 +68,12 @@ SUBMISSIONS.md  leaderboard-score log
 
 | Date | Approach | CV accuracy | Public score | Notes |
 |---|---|---|---|---|
-| 2026-07-12 | GradientBoosting + Title/FamilySize/IsAlone | 0.8406 | see SUBMISSIONS.md | first real model; next: tune params, try RF/XGB, add Fare bins |
+| 2026-07-13 | GradientBoosting + Title/FamilySize/IsAlone | 0.8406 | 0.76315 | first real model; CV overshoots LB — add held-out val, try RF/XGB, Fare bins |
 
 ## Checklist
 
-- [ ] Rules accepted on the competition website
+- [x] Rules accepted on the competition website
 - [x] Data downloaded to `data/`
 - [x] Baseline model built + validated (CV 0.8406)
 - [x] `submission.csv` generated (418 rows, correct format)
-- [ ] Submitted to Kaggle (pending auth token) + public score logged
+- [x] Submitted to Kaggle — public score 0.76315 logged in `SUBMISSIONS.md`
