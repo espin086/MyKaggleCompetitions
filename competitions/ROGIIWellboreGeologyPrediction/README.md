@@ -20,7 +20,12 @@ reference log (typewell). Lower RMSE wins.
 - [ ] EDA on well geometry + logs
 - [x] Baseline model + local CV (Stage 2 linear prior. see result below, not competitive yet)
 - [x] Submission notebook built + executed locally (`notebooks/submission.ipynb`)
-- [ ] First notebook submission actually pushed to Kaggle for a public score
+- [x] First notebook submission pushed to Kaggle (Stage 2 baseline, pipeline-proving)
+- [x] Stage 3 typewell/GR alignment tested (two heuristic variants, both underperformed. see
+      `context/05-plan-of-attack.md`) - informed the Stage 4 feature design instead
+- [x] Stage 4a global gradient-boosted model. real improvement, OOF RMSE 52.90 (see below)
+- [ ] Stage 4b sequence model (1D CNN / DTW) - the actual needle-mover, still ahead
+- [ ] Submit Stage 4a's predictions for a real public score
 
 ## Baseline result (Stage 2. per-well linear prior `tvt ~ MD + Z`)
 
@@ -40,6 +45,35 @@ flat clear through the eval zone; worst wells (RMSE 280-410) hit structural brea
 **Verdict:** pipeline is proven end-to-end (real per-well fit -> real eval-zone scoring), but
 the model itself needs the typewell/GR alignment (Stage 3) before it's submission-worthy.
 a linear-only submission would score far off the leaderboard.
+
+## Stage 3 result (typewell/GR alignment. tested, underperformed)
+
+Two heuristic variants (`src/stage3_gr_match.py` pointwise, `src/stage3_windowed_match.py`
+windowed+gated) both scored WORSE than the plain Stage 2 linear prior on a 50-well sample
+(74.72 and 75.06 vs 70.23). Root cause and full diagnostic write-up in
+`context/05-plan-of-attack.md` Stage 3 section - short version: GR alone is too noisy a
+discriminator for a hand-tuned local match/gate at this data's resolution. The signal turned
+out to still be useful, just not as a heuristic - see Stage 4a below, which feeds the same
+matcher's output into a learned model instead of gating it by hand.
+
+## Stage 4a result (global gradient-boosted model. real improvement)
+
+`src/stage4_global_model.py` trains ONE `HistGradientBoostingRegressor` across all 773
+wells' real eval zones pooled together, using `linear_prior`, `windowed_match`,
+`match_minus_prior`, geometry, `GR`, and eval-zone-position features as inputs. Validated
+with 5-fold **GroupKFold by well** (leak-free - never trains and scores on the same well).
+
+**Overall out-of-fold RMSE: 52.90** vs. Stage 2's 67.09 (linear alone) and 71.98
+(windowed-match alone, full-scale confirmation of the Stage 3 finding) - a genuine 21%
+improvement by letting the model learn when to trust each signal instead of a fixed
+threshold. Per-fold RMSE ranged 46.7-63.8 (real well-to-well difficulty variance). Still far
+from the ~4.86 LB leader - this is a flat/tabular model over per-row features, not a true
+sequence model; Stage 4b (1D CNN / proper DTW) is what's expected to close most of the
+remaining gap. Runtime: ~11 min full pipeline (feature build dominates).
+
+Run: `PYTHONPATH=src python3 src/stage4_global_model.py` (takes several minutes - the
+windowed-match feature has per-row Python overhead; worth vectorizing before iterating on it
+further).
 
 ## Submission notebook
 
@@ -133,6 +167,9 @@ SUBMISSIONS.md  leaderboard-score log (create on first submit)
 
 | Date | Approach | Local CV RMSE | Public LB | Notes |
 |---|---|---|---|---|
-| 2026-07-13 | Per-well linear `tvt ~ MD + Z` (Stage 2 baseline) | 67.09 (median 33.07) | not submitted | Pipeline proven end-to-end; not competitive. Long extrapolation into eval zone breaks on faults. Next: Stage 3 typewell/GR alignment. |
+| 2026-07-13 | Per-well linear `tvt ~ MD + Z` (Stage 2 baseline) | 67.09 (median 33.07) | submitted, score TBD | Pipeline proven end-to-end. Long extrapolation into eval zone breaks on faults. |
+| 2026-07-13 | Pointwise GR/typewell match (Stage 3a) | 74.72 (50-well sample) | not submitted | Worse than Stage 2 - GR alone too noisy for a single-point match. |
+| 2026-07-13 | Windowed GR shape-match + gate (Stage 3b) | 75.06 (50-well sample) | not submitted | Still worse - per-well typewell-fit quality too uniform for a simple gate to key off. |
+| 2026-07-13 | Global gradient-boosted model (Stage 4a) | 52.90 (773-well GroupKFold OOF) | not submitted | Real improvement, 21% RMSE reduction. Combines linear prior + GR-match signal + geometry via a learned model instead of a hand-tuned gate. Next: Stage 4b sequence model (1D CNN / DTW). |
 
 Anchor Kanban card: TBD (create on the JJ board via jj-kanban).

@@ -31,20 +31,70 @@ submit. Deadline 2026-08-05; ~5 submissions/day.
 - **Local CV that doesn't lie:** GroupKFold by well hash; within held-out wells, mask a
   contiguous span to imitate the eval zone. Track local RMSE vs public LB gap.
 
-## Stage 3. Signal matching (typewell alignment)
-- DTW / cross-correlation of lateral `GR` against typewell `GR` to estimate geologic position;
-  turn the alignment offset into a `tvt` estimate. (hengck23 DWT thread.)
-- Add as a feature and/or a second base model. Watch for shared/duplicate typewells across
-  wells (RMorrison thread). respect that in CV grouping.
-  - **Verify:** does the DTW estimate reduce held-out RMSE vs Stage-2 prior? Keep only if yes.
+## Stage 3. Signal matching (typewell alignment). TESTED, underperformed; feed as feature not gate
 
-## Stage 4. Sequence model (the needle-mover)
+Two heuristic variants were tested against the real per-well eval zones (same 773-well
+harness as Stage 2), both **worse than the Stage 2 linear prior**:
+
+| Approach | Local RMSE (50-well sample) | vs Stage 2 (70.23 same sample) |
+|---|---|---|
+| Pointwise nearest-GR match within a ±100ft window of the linear prior (`src/stage3_gr_match.py`) | 74.72 | worse |
+| Windowed shape-match (±5-row window, SSE) + per-well confidence gate (`src/stage3_windowed_match.py`) | 75.06 | worse |
+
+**Why:** diagnosed on well `000d7d20`. its true eval-zone span is only 15 ft, but the
+typewell is noisy (GR std 26, range 28-158) over ~650 ft at 0.5 ft resolution, and the
+linear prior was *already* tight there (RMSE 10). A wide/noisy search window gives the
+matcher enough freedom to latch onto spurious GR coincidences instead of real structure.
+A follow-up diagnostic (median |lateral GR − typewell GR at known TVT| across 50 wells)
+showed typewell-fit quality is fairly **uniform** (~7.7 GR units, not bimodal). so a
+simple per-well trust/no-trust gate has no signal to key off either. Two informed attempts
+without a reinforcing trend; per `verify-with-real-data.md` this stopped the heuristic-gate
+line rather than burn a third blind parameter guess.
+
+**Verdict, revised:** don't hand-tune a GR-match heuristic further. The signal is still
+probably useful, but only as an *input feature* to a learned model (Stage 4) that can weigh
+it per-region rather than a fixed threshold. see Stage 4's `windowed_match` /
+`match_minus_prior` features, which feed the same matcher's output into the boosted model
+instead of gating it by hand. Real DTW alignment (proper dynamic time warping over the full
+known-zone sequence, not a fixed-radius local window) remains untried and is the more
+faithful reading of the hengck23 DTW thread. worth a real attempt if Stage 4/5 plateau.
+Watch for shared/duplicate typewells across wells (RMorrison thread) if revisiting this.
+
+## Stage 4a. Global gradient-boosted model. TESTED, real improvement (67.09 → 52.90)
+
+Before the 1D-CNN lift, tried the simpler "let a learned model combine the existing signals"
+step: one `HistGradientBoostingRegressor` trained across **all** wells' real eval zones
+pooled together (not per-well), with `linear_prior`, `windowed_match`,
+`match_minus_prior`, geometry (`MD/X/Y/Z`), `GR`, `dist_from_known_boundary`,
+`eval_zone_frac`, and `known_zone_rows` as features (`src/stage4_global_model.py`).
+Validated with 5-fold **GroupKFold by well** (never train and score on the same well). directly comparable to Stage 2's 67.09 since both use the full 773-well real-eval-zone set.
+
+| Signal | RMSE (773 wells, full set) |
+|---|---|
+| `linear_prior` alone (Stage 2) | 67.09 |
+| `windowed_match` alone (Stage 3, confirms the 50-well finding at full scale) | 71.98 |
+| **Stage 4a: HistGradientBoostingRegressor combining both + features (OOF)** | **52.90** |
+
+**Why it worked where Stage 3's hand-tuned gate didn't:** the model learns *when* to trust
+the GR-match signal (and by how much) per region of feature space, rather than a single
+fixed threshold. Confirms the Stage 3 verdict above. the GR-match signal had real
+information, it just needed a learner instead of a heuristic to extract it.
+
+**Caveat:** per-fold RMSE ranged 46.7. 63.8. real well-to-well difficulty variance
+(structural complexity), not fold noise; the closest-to-plausible test wells still likely
+score somewhere in that range, still far from the ~4.86 LB leader. Runtime: ~11 min for the
+full 773-well feature build + 5-fold train (feature build dominates. the windowed-match
+step is O(rows) with per-row Python overhead; vectorizing it would speed later iterations).
+
+## Stage 4b. Sequence model (the needle-mover, still ahead)
 - 1D CNN (and/or temporal model) over `[GR, MD, Z, X, Y, TVT_input, dip features]` predicting
-  `tvt`. or the **residual** off the Stage-2 linear prior (usually more stable). This is the
-  log-inversion approach the leaders use (hengck23 MTP; nvidia-kaggle teardown).
+  `tvt`. or the **residual** off the Stage-2/4a prediction (usually more stable). This is the
+  log-inversion approach the leaders use (hengck23 MTP; nvidia-kaggle teardown) and is what
+  closes the remaining ~48-point gap to the LB leader. Stage 4a's gradient boosting is still
+  a flat/tabular model over per-row features, not a true sequence model.
 - If using pretrained weights, upload them as a Kaggle Dataset (internet-off at submit).
-  - **Verify:** GroupKFold RMSE beats Stages 2. 3; a submission confirms the LB moves the same
-    direction (guard against CV/LB divergence).
+  - **Verify:** GroupKFold RMSE beats Stage 4a's 52.90; a submission confirms the LB moves the
+    same direction (guard against CV/LB divergence).
 
 ## Stage 5. Ensemble + finalize
 - Blend physics prior + DTW match + CNN. Weight by held-out RMSE.
