@@ -86,6 +86,15 @@ score somewhere in that range, still far from the ~4.86 LB leader. Runtime: ~11 
 full 773-well feature build + 5-fold train (feature build dominates. the windowed-match
 step is O(rows) with per-row Python overhead; vectorizing it would speed later iterations).
 
+**Submitted and confirmed with a real Kaggle score.** Pushed as a Kaggle Notebook
+(`notebooks/submission_stage4a.ipynb`) via `kaggle kernels push`, ran clean on Kaggle's
+infrastructure (0/773 train wells failed), submitted via
+`kaggle competitions submit -k jjespinoza/rogii-stage-4a-global-gradient-boosted-model -v 1`.
+**Public LB: 45.196**, vs Stage 2's 80.534. a real 44% improvement, and the public-LB gain
+tracked the local-CV gain in the same direction (no CV/LB divergence) - the local validation
+methodology (real per-well eval zones, GroupKFold by well) is trustworthy. Full detail in
+`../SUBMISSIONS.md`.
+
 ## Stage 4b. Sequence model (the needle-mover, still ahead)
 - 1D CNN (and/or temporal model) over `[GR, MD, Z, X, Y, TVT_input, dip features]` predicting
   `tvt`. or the **residual** off the Stage-2/4a prediction (usually more stable). This is the

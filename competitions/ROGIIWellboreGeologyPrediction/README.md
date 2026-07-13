@@ -24,8 +24,9 @@ reference log (typewell). Lower RMSE wins.
 - [x] Stage 3 typewell/GR alignment tested (two heuristic variants, both underperformed. see
       `context/05-plan-of-attack.md`) - informed the Stage 4 feature design instead
 - [x] Stage 4a global gradient-boosted model. real improvement, OOF RMSE 52.90 (see below)
+- [x] Stage 4a submitted to Kaggle. **real public score 45.196** (vs Stage 2's 80.534). see
+      `SUBMISSIONS.md`
 - [ ] Stage 4b sequence model (1D CNN / DTW) - the actual needle-mover, still ahead
-- [ ] Submit Stage 4a's predictions for a real public score
 
 ## Baseline result (Stage 2. per-well linear prior `tvt ~ MD + Z`)
 
@@ -74,6 +75,13 @@ remaining gap. Runtime: ~11 min full pipeline (feature build dominates).
 Run: `PYTHONPATH=src python3 src/stage4_global_model.py` (takes several minutes - the
 windowed-match feature has per-row Python overhead; worth vectorizing before iterating on it
 further).
+
+**Submitted and scored on Kaggle: public LB 45.196** (vs Stage 2's 80.534 - a real 44%
+improvement, tracking the local CV gain in the same direction, no CV/LB divergence). Pushed
+via `kaggle kernels push` (`notebooks/submission_stage4a.ipynb`, kernel
+`jjespinoza/rogii-stage-4a-global-gradient-boosted-model`), ran clean on Kaggle's own
+infrastructure (0 wells failed), submitted via `kaggle competitions submit -k ... -v 1`. Full
+detail in `SUBMISSIONS.md`.
 
 ## Submission notebook
 
@@ -157,19 +165,20 @@ modeling. Agents working this competition should start at `context/00-agent-brie
 
 ```
 data/           per-well train/ + test/ CSVs, sample_submission.csv (gitignored. re-download)
-src/            config.py, model + submission code
-submissions/    submission.csv (generated)
+src/            config.py, model + submission code (baseline.py, stage3_*.py, stage4_*.py)
+notebooks/      Kaggle submission notebooks + kaggle_push/ (kernel-metadata.json for CLI push)
+submissions/    generated submission.csv snapshots (local-test and real Kaggle-scored copies)
 context/        agent-facing brief, data dictionary, rules, discussion intel, plan of attack
-SUBMISSIONS.md  leaderboard-score log (create on first submit)
+SUBMISSIONS.md  real leaderboard-score log (Kaggle CLI, not estimated)
 ```
 
 ## Experiment log
 
 | Date | Approach | Local CV RMSE | Public LB | Notes |
 |---|---|---|---|---|
-| 2026-07-13 | Per-well linear `tvt ~ MD + Z` (Stage 2 baseline) | 67.09 (median 33.07) | submitted, score TBD | Pipeline proven end-to-end. Long extrapolation into eval zone breaks on faults. |
+| 2026-07-13 | Per-well linear `tvt ~ MD + Z` (Stage 2 baseline) | 67.09 (median 33.07) | **80.534** | Pipeline proven end-to-end. Long extrapolation into eval zone breaks on faults. |
 | 2026-07-13 | Pointwise GR/typewell match (Stage 3a) | 74.72 (50-well sample) | not submitted | Worse than Stage 2 - GR alone too noisy for a single-point match. |
 | 2026-07-13 | Windowed GR shape-match + gate (Stage 3b) | 75.06 (50-well sample) | not submitted | Still worse - per-well typewell-fit quality too uniform for a simple gate to key off. |
-| 2026-07-13 | Global gradient-boosted model (Stage 4a) | 52.90 (773-well GroupKFold OOF) | not submitted | Real improvement, 21% RMSE reduction. Combines linear prior + GR-match signal + geometry via a learned model instead of a hand-tuned gate. Next: Stage 4b sequence model (1D CNN / DTW). |
+| 2026-07-13 | Global gradient-boosted model (Stage 4a) | 52.90 (773-well GroupKFold OOF) | **45.196** | Real improvement, 21% local / 44% public LB reduction over Stage 2. CV and LB gains tracked in the same direction. Combines linear prior + GR-match signal + geometry via a learned model instead of a hand-tuned gate. Next: Stage 4b sequence model (1D CNN / DTW). |
 
 Anchor Kanban card: TBD (create on the JJ board via jj-kanban).

@@ -169,6 +169,7 @@ competitions/*/kaggle_run/
 
 # ROGII competition data (1.33GB, competition-use-only per rules — never commit)
 competitions/ROGIIWellboreGeologyPrediction/data/
+competitions/ROGIIWellboreGeologyPrediction/notebooks/kaggle_push/output/
 kaggle_run_prev*/
 competitions/*/kaggle_run_prev*/
 # Notebooks in competitions/*/notebooks/ ARE tracked (durable run history) — do not ignore.
