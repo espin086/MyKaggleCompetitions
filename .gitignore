@@ -166,3 +166,6 @@ cython_debug/
 # kaggle-ml-loop run artifacts (mlflow.db, datasets, models)
 kaggle_run/
 competitions/*/kaggle_run/
+
+# ROGII competition data (1.33GB, competition-use-only per rules — never commit)
+competitions/ROGIIWellboreGeologyPrediction/data/
