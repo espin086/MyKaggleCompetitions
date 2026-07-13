@@ -41,9 +41,14 @@ CLI side (auth, scaffolding, submitting, `SUBMISSIONS.md` logging). Use them tog
    python src/submit.py "kaggle-ml-loop champion: <one-line description>"   # submits + logs to SUBMISSIONS.md
    ```
    (`src/submit.py` from the competition scaffold submits and appends the public score
-   to `SUBMISSIONS.md`. Don't re-implement submitting here.)
-4. **Dependencies** beyond the scaffold's pandas/scikit-learn: `mlflow optuna scipy pyyaml`.
-   Install into the competition's venv: `uv pip install mlflow optuna scipy pyyaml`.
+   to `SUBMISSIONS.md`. Don't re-implement submitting here.) After scoring, edit the new
+   `SUBMISSIONS.md` row to reference the run's two notebooks in `notebooks/` (same names
+   logged in `notebooks/INDEX.md`) so a scored submission links back to the EDA + champion
+   notebooks that produced it.
+4. **Dependencies** beyond the scaffold's pandas/scikit-learn: `mlflow optuna scipy pyyaml`
+   plus the notebook stack `seaborn matplotlib nbformat nbconvert jupyter ipykernel`.
+   Install into the competition's venv: `uv pip install -r <skill>/requirements.txt`, then
+   register the kernel once: `python -m ipykernel install --user --name python3`.
 5. **Auth** is Kaggle-CLI auth (needs kaggle CLI ≥ 1.8.0 for `KGAT_` access tokens) — see the
    `kaggle` skill. This skill never calls the Kaggle API itself; it only produces the submission.
 6. **`kaggle_run/` is a run artifact** — gitignore it (it holds `mlflow.db`, datasets, models).
@@ -82,6 +87,10 @@ kaggle_run/
 ├── mlflow.db             # MLflow SQLite backend
 └── champion/             # final model, params, submission.csv
 ```
+
+The two explainable notebooks land **outside** the (gitignored) run dir, in the tracked
+`competitions/<Name>/notebooks/` folder — a durable, timestamped history logged in
+`notebooks/INDEX.md`. See `references/notebook-conventions.md`.
 
 ## The loop (repeat for loop 1..N)
 
@@ -199,8 +208,30 @@ Two-stage finish designed to defeat CV overfitting:
    (CV score, holdout scores for every finalist, refit row counts). If
    `test.csv` exists, writes `champion/submission.csv`.
 
+## After champion selection — build the explainable notebooks
+
+```bash
+python scripts/build_notebooks.py --config config.yaml --which both
+```
+
+This is **not optional** — every run ends here. It generates two executed, git-tracked
+Jupyter notebooks into `competitions/<Name>/notebooks/` (a new timestamped pair per run,
+logged in `notebooks/INDEX.md`):
+
+- `eda_<competition>_<ts>.ipynb` — seaborn EDA with survival-signal charts for the
+  engineered features.
+- `champion_<competition>_<ts>.ipynb` — what the MLflow experiments taught, the score
+  trajectory, and how the champion reads the data (permutation + native importance).
+
+Both carry a top-of-notebook links block (datasets, config, run artifacts) and the MLflow
+UI command so JJ can jump from notebook → tracker. Requires the notebook deps in
+`requirements.txt` and a registered `python3` Jupyter kernel. See
+`references/notebook-conventions.md`. On champion→submission handoff, add the run's two
+notebook names to the `SUBMISSIONS.md` row.
+
 Report to the user: champion identity, CV score trajectory across loops (did
-the knowledge loop actually improve things?), and the MLflow UI command
+the knowledge loop actually improve things?), the **paths to both generated notebooks**,
+and the MLflow UI command
 (`mlflow ui --backend-store-uri sqlite:///kaggle_run/mlflow.db`).
 
 ## Non-negotiables
@@ -226,3 +257,4 @@ the knowledge loop actually improve things?), and the MLflow UI command
 - `references/feature-recipes.md` — recipe JSON schema, full op catalog, examples. Read before designing any recipe.
 - `references/algorithm-dataset-map.md` — model zoo, default params, which models pair with which variant types, Optuna search spaces rationale.
 - `references/mlflow-conventions.md` — naming, tags, and how to query results.
+- `references/notebook-conventions.md` — the two explainable notebooks: what they contain, naming, where they live, and how `build_notebooks.py` generates them.
