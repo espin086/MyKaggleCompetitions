@@ -60,8 +60,24 @@ baseline (local RMSE 67.09) - it locks the submit pipeline, not a leaderboard at
 1. Upload `notebooks/submission.ipynb` as a new Kaggle Notebook, attach the competition
    dataset (`rogii-wellbore-geology-prediction`) as input.
 2. **Turn internet off** in notebook settings (required by the rules).
-3. Run all cells (`Save & Run All`) - it writes `submission.csv` in the Kaggle output.
-4. Click **Submit to Competition** from the notebook's Output tab.
+3. Click **Save Version → Save & Run All (Commit)** - not a plain interactive run. Running
+   cells in the editor writes `submission.csv` into that live session only; Kaggle's submit
+   picker only sees output files attached to a **committed Version**. Wait for the commit to
+   finish, then confirm `submission.csv` shows up under that Version's Output tab (check the
+   Version's own Logs if it doesn't - a bare `assert` failing on the real hidden test set,
+   not just the 3 visible example wells, will silently produce nothing; the notebook code was
+   hardened on 2026-07-13 to degrade instead of hard-crash for exactly this reason).
+4. **Check your score with the CLI** (more reliable than clicking through the website UI):
+
+   ```
+   kaggle competitions submit -c rogii-wellbore-geology-prediction \
+     -f submission.csv -k jjespinoza/<NOTEBOOK-SLUG> -v <VERSION-NUMBER> \
+     -m "<short note on the approach>"
+   ```
+
+   `-k` is the notebook's Kaggle slug (`jjespinoza/<notebook-name>` from its URL), `-v` is the
+   committed Version number to pull `submission.csv` from (not the CLI file-submit path used
+   for non-Code Competitions - this variant submits a notebook Version's output file).
 5. Read the score back with `kaggle competitions submissions -c rogii-wellbore-geology-prediction`
    and log it in the Experiment log below - don't report a number the CLI hasn't returned.
 

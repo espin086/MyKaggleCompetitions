@@ -110,6 +110,19 @@ Run these from the competition folder (`cd competitions/<Name>`).
   the `kaggle competitions submit -f ...` path does NOT apply — the submission artifact is a
   committed Kaggle Notebook. The local repo is for development + local CV only; port the final
   pipeline into a self-contained notebook (preload any weights as a Kaggle Dataset).
+  - **Must be a committed Version, not an interactive run.** Running cells in the Kaggle
+    notebook editor writes `submission.csv` into that live session only — Kaggle's submit
+    picker only sees output files attached to a **Save Version → Save & Run All (Commit)**
+    run. An interactive run "succeeding" on screen does NOT mean a submittable file exists.
+  - **Submit a committed Version's output via CLI** with the notebook variant of `submit`
+    (different from the plain-CSV form above):
+    ```
+    kaggle competitions submit -c <slug> -f submission.csv \
+      -k <kaggle-username>/<notebook-slug> -v <version-number> -m "<note>"
+    ```
+    `-k` is the notebook's slug from its URL (`<username>/<notebook-name>`), `-v` is the
+    committed Version number to pull `submission.csv` from. Then read the score with
+    `kaggle competitions submissions -c <slug>` as usual — don't trust the website UI alone.
   - **The competition-data mount path is `/kaggle/input/competitions/<slug>/`**, NOT
     `/kaggle/input/<slug>/` — that second form is where an *attached Dataset* lands, and a
     Code Competition's own data is mounted under the `competitions/` subpath instead (confirmed
