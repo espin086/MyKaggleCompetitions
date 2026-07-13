@@ -5,3 +5,10 @@ mlflow
 optuna
 scipy
 pyyaml
+# notebook generation (build_notebooks.py)
+seaborn
+matplotlib
+nbformat
+nbconvert
+jupyter
+papermill

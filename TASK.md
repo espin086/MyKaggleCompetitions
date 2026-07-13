@@ -18,3 +18,4 @@ Obsidian wikilinks), a one-line summary, and the deliverable path (usually under
 | Date | Card | What was done | Deliverable |
 |---|---|---|---|
 | {{YYYY-MM-DD}} | {{JJ-000}} | {{one line. what this card produced}} | {{05-deliverables/<file>}} |
+| 2026-07-13 | (kaggle-ml-loop) | Added auto-generated explainable notebooks (EDA + champion) to the kaggle-ml-loop skill: `build_notebooks.py` + two templates + `notebook-conventions.md`; wired into SKILL.md; per-run timestamped tracked notebooks in `competitions/<Name>/notebooks/` with INDEX.md. Ran a 5-loop enriched Titanic run (new `src/prep.py`): local holdout 0.8156 but public LB regressed (0.758/0.756) vs prior best 0.78947. CV↔LB overfit documented; raw stacking ensemble stays best. | `.claude/skills/kaggle-ml-loop/scripts/build_notebooks.py`, `competitions/TitanicMachineLearningFromDisaster/notebooks/` |

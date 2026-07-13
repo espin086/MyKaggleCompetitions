@@ -166,3 +166,6 @@ cython_debug/
 # kaggle-ml-loop run artifacts (mlflow.db, datasets, models)
 kaggle_run/
 competitions/*/kaggle_run/
+kaggle_run_prev*/
+competitions/*/kaggle_run_prev*/
+# Notebooks in competitions/*/notebooks/ ARE tracked (durable run history) — do not ignore.
