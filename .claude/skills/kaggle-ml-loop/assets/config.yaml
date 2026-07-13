@@ -1,0 +1,38 @@
+# kaggle-ml-loop run configuration — copy into your run directory and edit.
+competition_name: my-competition
+
+data:
+  train_path: ./train.csv
+  test_path: ./test.csv          # optional; null if absent
+  target: target                 # target column name
+  id_column: id                  # null if none
+  task: auto                     # auto | classification | regression
+
+evaluation:
+  metric: auto                   # auto | roc_auc | accuracy | f1 | neg_log_loss | neg_root_mean_squared_error | neg_mean_absolute_error | r2
+  cv_folds: auto                # auto: <500 rows->10x3 repeats | <2k->10x2 | <100k->5 | else 3; or set an int
+  holdout_fraction: 0.2         # held out from ALL loops; used only for final champion selection
+  random_state: 42
+
+loop:
+  n_loops: 10
+  run_dir: ./kaggle_run
+
+training:
+  max_train_seconds_per_fit: 120   # skip model+dataset pairs exceeding this per CV fit
+  n_jobs: -1
+
+optimization:
+  top_k_models: 3                  # pairs promoted to Optuna
+  optuna_trials: 40
+  optuna_timeout_s: 900            # per study
+
+ensembling:
+  top_m_models: 5                  # base models per ensemble
+  methods: [voting, blending, stacking]
+
+mlflow:
+  tracking_uri: null               # null -> sqlite:///<run_dir>/mlflow.db
+
+champion:
+  n_finalists: 5                   # top candidates across all loops evaluated on the holdout
