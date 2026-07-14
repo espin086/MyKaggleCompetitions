@@ -95,22 +95,70 @@ tracked the local-CV gain in the same direction (no CV/LB divergence) - the loca
 methodology (real per-well eval zones, GroupKFold by well) is trustworthy. Full detail in
 `../SUBMISSIONS.md`.
 
-## Stage 4b. Sequence model (the needle-mover, still ahead)
-- 1D CNN (and/or temporal model) over `[GR, MD, Z, X, Y, TVT_input, dip features]` predicting
-  `tvt`. or the **residual** off the Stage-2/4a prediction (usually more stable). This is the
-  log-inversion approach the leaders use (hengck23 MTP; nvidia-kaggle teardown) and is what
-  closes the remaining ~48-point gap to the LB leader. Stage 4a's gradient boosting is still
-  a flat/tabular model over per-row features, not a true sequence model.
-- If using pretrained weights, upload them as a Kaggle Dataset (internet-off at submit).
-  - **Verify:** GroupKFold RMSE beats Stage 4a's 52.90; a submission confirms the LB moves the
-    same direction (guard against CV/LB divergence).
+## Stage 4b. Sequence model. TESTED, underperformed Stage 4a (3 attempts, hard-capped)
+
+A 1D CNN over local windows (41 consecutive eval-zone rows) of the Stage 4a feature set,
+convolving where Stage 4a treated every row independently (`src/stage4b_cnn_model.py`).
+Three attempts, GroupKFold-by-well on a 30-well local sample (fast iteration before
+committing to the full 773-well run):
+
+| Attempt | Features | Local RMSE (30-well GroupKFold) |
+|---|---|---|
+| 1 | All 11 Stage 4a features (incl. raw `MD/X/Y/Z`) | 81.02 |
+| 2 | Dropped `X/Y`, added dropout + weight decay | 84.67 (regressed) |
+| 3 | Kept only `GR` + `linear_prior`/`windowed_match`/`match_minus_prior`/`eval_zone_frac` | **70.18** (best, still worse than Stage 4a) |
+
+**Diagnosis:** attempts 1-2 converged to near-zero TRAIN loss within a single epoch while
+held-out RMSE stayed terrible - textbook well-identity memorization, not sequence learning.
+With only ~700 wells (≈25 per training fold), the CNN's capacity is enough to memorize
+"well at this (X, Y) / this MD range / this known_zone_rows count → target ≈ this value"
+instead of learning transferable GR-shape patterns. Attempt 3 stripped every scalar that
+could serve as a well-identity key and improved meaningfully (81.02/84.67 → 70.18), which
+confirms the diagnosis - but it's still well short of **Stage 4a's 52.90 local / 45.196
+public LB**. Even the cleanest feature set didn't have enough data (and target-scaling was
+also needed just to get the model to converge to the right output magnitude at all - raw
+~11-12k targets converge far slower than scaled ones from a random init).
+
+Per `verify-with-real-data.md`, 3 attempts is the hard cap regardless of outcome. Submitted
+attempt 3 anyway for a real, honest data point (see `../SUBMISSIONS.md`) rather than only
+estimate it - it is NOT the recommended model; Stage 4a remains the best real result.
+
+**Submitted and confirmed: public LB 72.734.** Pushed as a Kaggle Notebook
+(`notebooks/submission_stage4b.ipynb`) via `kaggle kernels push`, ran clean on Kaggle's
+infrastructure (0/773 train wells failed, 1-epoch CNN trained on all 3.78M rows), submitted
+via `kaggle competitions submit -k jjespinoza/rogii-stage-4b-1d-cnn-sequence-model -v 1`.
+Worse than Stage 4a's 45.196, better than Stage 2's 80.534. Local (70.18) and public (72.73)
+tracked closely - no CV/LB divergence, so the negative result is trustworthy, not a fluke of
+local validation. Full detail in `../SUBMISSIONS.md`.
+
+**Revised verdict for future work:** a naive per-row-window CNN on this small a well count
+doesn't beat gradient boosting on the same signals. A genuine sequence-to-sequence approach
+(predict the whole eval zone at once, or pretrain on a self-supervised task using ALL rows -
+not just eval-zone-labeled ones - across all 773 wells) has more data to learn from and is
+the more faithful reading of what the top public kernels (hengck23 MTP thread) are doing;
+this windowed-per-row CNN was a lighter first attempt and it hit its ceiling.
 
 ## Stage 5. Ensemble + finalize
-- Blend physics prior + DTW match + CNN. Weight by held-out RMSE.
-- Uncertainty estimation (per-prediction confidence). cheap wins and rewarded by the Working
-  Note criteria even if the writeup award has passed; it also flags where to trust the blend.
-- Pick **2 diverse final submissions** (e.g. best-CV CNN blend + a robust physics-heavy one),
-  not two near-identical ones, to hedge public↔private LB shift.
+
+Original plan: "blend physics prior + DTW match + CNN." Revised given Stage 4b's real
+result - the CNN (public LB 72.734) is clearly worse than Stage 4a alone (45.196), so
+including it in an ensemble is more likely to drag the blend down than help, unless the
+ensembling method (e.g. a stacked meta-learner) can learn to weight it near zero on its own.
+Default plan: ensemble Stage 2 (linear prior), Stage 3's windowed-match signal, and Stage 4a
+(gradient boosting) - the three real, working signals - and only fold the CNN in if a
+stacked/weighted blend demonstrably benefits from it on held-out data (verify before
+trusting; don't assume "more models = better").
+
+- Blend the physics prior + GR-match signal + Stage 4a's GB prediction. Weight by held-out
+  RMSE (or a stacked meta-learner) rather than equal-weighting.
+- Uncertainty estimation (per-prediction confidence, e.g. ensemble spread across the base
+  models) - cheap and still useful even though the Working Note award deadline passed; flags
+  where to trust the blend.
+- Pick **2 diverse final submissions** for judging, not two near-identical ones, to hedge
+  public/private LB shift.
+- **Verify before opening a PR:** confirm the ensemble actually improves on Stage 4a's 52.90
+  local / 45.196 public LB before treating it as the new best model - a blend of a good
+  model and worse ones can easily net worse than the good model alone.
 
 ## Tooling note. reuse the repo's kaggle-ml-loop where it fits
 The `kaggle-ml-loop` skill automates the tabular loop (EDA → recipes → MLflow → champion).

@@ -1,7 +1,7 @@
 {
-  "id": "jjespinoza/rogii-stage4a-global-model",
-  "title": "ROGII Stage 4a - Global Gradient Boosted Model",
-  "code_file": "submission_stage4a.ipynb",
+  "id": "jjespinoza/rogii-stage4b-cnn-sequence-model",
+  "title": "ROGII Stage 4b - 1D CNN Sequence Model",
+  "code_file": "submission_stage4b.ipynb",
   "language": "python",
   "kernel_type": "notebook",
   "is_private": true,
