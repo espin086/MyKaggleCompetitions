@@ -25,8 +25,10 @@ reference log (typewell). Lower RMSE wins.
       `context/05-plan-of-attack.md`) - informed the Stage 4 feature design instead
 - [x] Stage 4a global gradient-boosted model. real improvement, OOF RMSE 52.90 (see below)
 - [x] Stage 4a submitted to Kaggle. **real public score 45.196** (vs Stage 2's 80.534). see
-      `SUBMISSIONS.md`
-- [ ] Stage 4b sequence model (1D CNN / DTW) - the actual needle-mover, still ahead
+      `SUBMISSIONS.md`. **Best model so far.**
+- [x] Stage 4b 1D CNN sequence model tested (3 attempts) and submitted. real public score
+      **72.734** - worse than Stage 4a, kept as an honest documented result (see below)
+- [ ] Stage 5 ensemble - next up
 
 ## Baseline result (Stage 2. per-well linear prior `tvt ~ MD + Z`)
 
@@ -82,6 +84,31 @@ via `kaggle kernels push` (`notebooks/submission_stage4a.ipynb`, kernel
 `jjespinoza/rogii-stage-4a-global-gradient-boosted-model`), ran clean on Kaggle's own
 infrastructure (0 wells failed), submitted via `kaggle competitions submit -k ... -v 1`. Full
 detail in `SUBMISSIONS.md`.
+
+## Stage 4b result (1D CNN sequence model. tested, real result, still worse than 4a)
+
+`src/stage4b_cnn_model.py` convolves over a local window of 41 consecutive eval-zone rows
+(instead of Stage 4a treating each row independently). Three attempts on a 30-well
+GroupKFold sample before committing to the full run:
+
+| Attempt | Features | Local RMSE (30-well) |
+|---|---|---|
+| 1 | All 11 Stage 4a features (incl. raw MD/X/Y/Z) | 81.02 |
+| 2 | Dropped X/Y, added dropout + weight decay | 84.67 (regressed) |
+| 3 | GR + model-output signals only (identity features stripped) | **70.18** |
+
+**Diagnosis:** attempts 1-2 hit near-zero training loss within 1 epoch while held-out RMSE
+stayed terrible - the CNN was memorizing per-well identity from absolute location/geometry
+(only ~25 wells per fold makes this trivial), not learning transferable GR-shape patterns.
+Attempt 3 stripped every well-identifying scalar and improved meaningfully, confirming the
+diagnosis - but still fell short of Stage 4a. Per `verify-with-real-data.md`, 3 attempts is
+the hard cap regardless of outcome.
+
+**Submitted anyway for a real, honest data point: public LB 72.734** - worse than Stage 4a's
+45.196, better than Stage 2's 80.534. Local (70.18) and public (72.73) track closely, no
+CV/LB divergence - confirming the validation methodology holds even for a negative result.
+**Not the recommended model.** Stage 4a remains the best submitted approach. Full detail in
+`context/05-plan-of-attack.md` and `SUBMISSIONS.md`.
 
 ## Submission notebook
 
@@ -179,6 +206,7 @@ SUBMISSIONS.md  real leaderboard-score log (Kaggle CLI, not estimated)
 | 2026-07-13 | Per-well linear `tvt ~ MD + Z` (Stage 2 baseline) | 67.09 (median 33.07) | **80.534** | Pipeline proven end-to-end. Long extrapolation into eval zone breaks on faults. |
 | 2026-07-13 | Pointwise GR/typewell match (Stage 3a) | 74.72 (50-well sample) | not submitted | Worse than Stage 2 - GR alone too noisy for a single-point match. |
 | 2026-07-13 | Windowed GR shape-match + gate (Stage 3b) | 75.06 (50-well sample) | not submitted | Still worse - per-well typewell-fit quality too uniform for a simple gate to key off. |
-| 2026-07-13 | Global gradient-boosted model (Stage 4a) | 52.90 (773-well GroupKFold OOF) | **45.196** | Real improvement, 21% local / 44% public LB reduction over Stage 2. CV and LB gains tracked in the same direction. Combines linear prior + GR-match signal + geometry via a learned model instead of a hand-tuned gate. Next: Stage 4b sequence model (1D CNN / DTW). |
+| 2026-07-13 | Global gradient-boosted model (Stage 4a) | 52.90 (773-well GroupKFold OOF) | **45.196** | Real improvement, 21% local / 44% public LB reduction over Stage 2. CV and LB gains tracked in the same direction. Combines linear prior + GR-match signal + geometry via a learned model instead of a hand-tuned gate. **Best model so far.** |
+| 2026-07-14 | 1D CNN sequence model (Stage 4b) | 70.18 (30-well GroupKFold, best of 3 attempts) | **72.734** | Worse than Stage 4a. 3 attempts (81.02, 84.67, 70.18) - CNN memorized well identity on the first two; stripping identity features helped but not enough. Local/public tracked closely (no divergence). Honest negative result, documented and submitted anyway. Next: Stage 5 ensemble (Stage 2 + Stage 4a, likely excluding this CNN). |
 
 Anchor Kanban card: TBD (create on the JJ board via jj-kanban).
