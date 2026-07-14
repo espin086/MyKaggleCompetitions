@@ -189,14 +189,21 @@ private-test performance, not ground truth to calibrate against. Getting one pub
 that lands unfavorably for an approach that is robustly better in repeated local validation
 is exactly the kind of outcome that small-sample public-LB noise would produce.
 
-**Revised recommendation:** the local evidence for the NNLS blend is stronger than the
-single Kaggle submission suggests. Stage 4a alone (public LB 45.196) is still the safer
-choice to lead with given it's the only real submitted number in hand for the blend, but the
-blend is not disqualified by this one result - a second submission (or waiting for the
-private leaderboard) would be the way to actually resolve which is better, since local CV
-has now been shown to disagree with a single public score for a plausible sampling reason,
-not a methodology flaw. Did not resubmit unprompted; this is an open question for JJ to
-decide whether to spend another submission on.
+**Follow-up: resubmitted the identical Stage 5 predictions a second time** (same
+deterministic model, bit-for-bit identical `submission.csv`) to test whether the public
+score itself varies per submission. **Confirmed identical: 45.997 both times.** This rules
+out submission-to-submission randomness as the explanation - the public leaderboard is
+scored against a FIXED sample of the test data, not a re-drawn one each time. So a re-submit
+of the same model gives zero new information; the divergence is more likely a genuine
+(if small) difference between the training wells' distribution and the specific fixed
+public sample, not noise that would average out with more submissions of the same thing.
+
+**Revised recommendation:** the local evidence for the NNLS blend remains strong (10/10
+random splits favor it, t-stat ~-10.6), but the one real public score we have for it is
+confirmed stable at 45.997, worse than Stage 4a's 45.196. Stage 4a alone remains the safer
+choice to lead with. Resolving which is truly better needs either a genuinely different/
+improved model, or the private leaderboard at competition close - not another identical
+resubmission.
 
 **Not done:** uncertainty estimation (per-prediction confidence) and picking 2 diverse final
 submissions for judging - deferred since which model is actually best is now genuinely
