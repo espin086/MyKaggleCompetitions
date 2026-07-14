@@ -8,10 +8,11 @@ Lower RMSE is better. Public LB leader for reference: ~4.86 (as of 2026-07-13).
 | 2026-07-13 | 54662772 | Stage 2: per-well linear `tvt ~ MD + Z` | 67.09 (median 33.07) | **80.534** | Pipeline-proving baseline. Extrapolates a straight line into the eval zone; breaks on faults. |
 | 2026-07-13 | 54664284 | Stage 4a: global `HistGradientBoostingRegressor` (linear prior + windowed GR/typewell match + geometry as features, GroupKFold-by-well OOF) | 52.90 (773-well OOF) | **45.196** | 44% improvement over Stage 2. Public LB gain (80.53 to 45.2) tracked the local CV gain (67.09 to 52.90) in the same direction - no CV/LB divergence. Still a flat/tabular model, not a true sequence model. **Best model so far.** |
 | 2026-07-14 | 54671461 | Stage 4b: 1D CNN over local windows (`GR` + model-output signals only, identity features stripped after 2 failed attempts) | 70.18 (30-well GroupKFold) | **72.734** | Real, honest result - worse than Stage 4a (45.196), better than Stage 2 (80.534). Local (70.18) and public (72.73) track closely, no CV/LB divergence, confirming the validation methodology even for a negative result. 3 attempts tested (81.02, 84.67, 70.18 local); hard-capped per `verify-with-real-data.md`. NOT the recommended model - kept for the honest record. Stage 4a remains best. |
+| 2026-07-14 | 54672595 | Stage 5: NNLS ensemble of `linear_prior` + `windowed_match` + Stage 4a GB (CNN excluded, per Stage 4b's result). Weights: 0.123 / 0.096 / 0.781. | 52.03 (held-out GroupKFold, honest estimate) | **45.997** | Small CV/LB divergence: local held-out CV suggested a modest improvement over Stage 4a (52.90 to 52.03, ~1.6%), but the public LB is actually slightly WORSE (45.196 to 45.997, ~1.8% worse). At this small an effect size, the local gain didn't generalize. **Stage 4a alone remains the best real submitted model** - the blend isn't recommended as-is. See `src/stage5b_blend_variance.py` for a follow-up investigating whether this gap is noise. |
 
 ## How each was submitted
 
-All three went through the real Code Competition path: pushed as a Kaggle Notebook (`kaggle
+All four went through the real Code Competition path: pushed as a Kaggle Notebook (`kaggle
 kernels push`), executed on Kaggle's own infrastructure against
 `/kaggle/input/competitions/rogii-wellbore-geology-prediction/`, then submitted via
 `kaggle competitions submit -f submission.csv -k jjespinoza/<slug> -v <version>`. Score
@@ -23,3 +24,21 @@ not guessed or estimated.
   `jjespinoza/rogii-stage-4a-global-gradient-boosted-model`
 - Stage 4b: `notebooks/submission_stage4b.ipynb`, kernel
   `jjespinoza/rogii-stage-4b-1d-cnn-sequence-model`
+- Stage 5: `notebooks/submission_stage5.ipynb`, kernel
+  `jjespinoza/rogii-stage-5-ensemble-blend`
+
+## Current recommendation
+
+**Which model is actually best is genuinely unresolved** between Stage 4a alone (45.196,
+the only real submitted number for that model) and the Stage 5 blend. Follow-up analysis
+(`src/stage5b_blend_variance.py`) repeated the held-out validation 10 times with genuinely
+random well-to-fold splits (a first attempt used sklearn's `GroupKFold`, which turned out to
+be deterministic regardless of input order - fixed): the blend beat Stage 4a alone in
+**every single repeat** (mean -0.69 RMSE, t-stat ~-10.6) - a real, low-variance local signal,
+not noise. Ridge regularization on standardized features gave a near-identical, equally
+consistent result. So the single public-LB regression (45.997 vs 45.196) is more likely
+explained by the public leaderboard being scored on a **sample** of the test data (per the
+competition rules) - a single public score is itself a noisy estimate, not ground truth -
+than by the local validation being wrong. Resolving this for real needs either a second
+submission or the private leaderboard at competition close. Lead with Stage 4a for now since
+it's the safer, single-confirmed number, but don't treat the blend as disproven.

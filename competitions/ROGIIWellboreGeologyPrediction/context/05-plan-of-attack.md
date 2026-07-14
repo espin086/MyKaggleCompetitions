@@ -138,27 +138,69 @@ not just eval-zone-labeled ones - across all 773 wells) has more data to learn f
 the more faithful reading of what the top public kernels (hengck23 MTP thread) are doing;
 this windowed-per-row CNN was a lighter first attempt and it hit its ceiling.
 
-## Stage 5. Ensemble + finalize
+## Stage 5. Ensemble. TESTED, submitted, small net regression on public LB
 
 Original plan: "blend physics prior + DTW match + CNN." Revised given Stage 4b's real
-result - the CNN (public LB 72.734) is clearly worse than Stage 4a alone (45.196), so
-including it in an ensemble is more likely to drag the blend down than help, unless the
-ensembling method (e.g. a stacked meta-learner) can learn to weight it near zero on its own.
-Default plan: ensemble Stage 2 (linear prior), Stage 3's windowed-match signal, and Stage 4a
-(gradient boosting) - the three real, working signals - and only fold the CNN in if a
-stacked/weighted blend demonstrably benefits from it on held-out data (verify before
-trusting; don't assume "more models = better").
+result (public LB 72.734, clearly worse than Stage 4a's 45.196) - the CNN was excluded from
+the default blend since including a much-worse model was more likely to hurt than help
+(`src/stage5_ensemble.py`).
 
-- Blend the physics prior + GR-match signal + Stage 4a's GB prediction. Weight by held-out
-  RMSE (or a stacked meta-learner) rather than equal-weighting.
-- Uncertainty estimation (per-prediction confidence, e.g. ensemble spread across the base
-  models) - cheap and still useful even though the Working Note award deadline passed; flags
-  where to trust the blend.
-- Pick **2 diverse final submissions** for judging, not two near-identical ones, to hedge
-  public/private LB shift.
-- **Verify before opening a PR:** confirm the ensemble actually improves on Stage 4a's 52.90
-  local / 45.196 public LB before treating it as the new best model - a blend of a good
-  model and worse ones can easily net worse than the good model alone.
+**What was built:** a non-negative least-squares blend of `linear_prior` (Stage 2),
+`windowed_match` (Stage 3), and Stage 4a's `HistGradientBoostingRegressor`, using leak-free
+Stage 4a out-of-fold predictions (5-fold GroupKFold) as the third input so stacking a
+meta-model on top doesn't leak. Weights: `linear_prior` 0.123, `windowed_match` 0.096,
+`stage4a_pred` 0.781 - Stage 4a dominates but the other two aren't zeroed out.
+
+**Local validation (the honest number, not just in-sample):** weights fit on 4/5 of wells'
+OOF predictions, evaluated on the held-out 1/5 -> **RMSE 52.03** vs Stage 4a alone's 52.90,
+a real ~1.6% local improvement.
+
+**Submitted and confirmed - but it's a small net REGRESSION on the real leaderboard:**
+public LB **45.997** vs Stage 4a alone's **45.196** (~1.8% worse). Pushed via
+`kaggle kernels push` (`notebooks/submission_stage5.ipynb`, kernel
+`jjespinoza/rogii-stage-5-ensemble-blend`), ran clean (0/773 wells failed), submitted via
+`kaggle competitions submit -k jjespinoza/rogii-stage-5-ensemble-blend -v 1`.
+
+**Follow-up investigation (`src/stage5b_blend_variance.py`), answering "is the ~1 RMSE
+point local gap real, or noise?"** with actual repeated-CV data rather than guessing:
+
+Repeated the held-out split **10 times with genuinely random well-to-fold assignment**
+(first attempt used sklearn's `GroupKFold`, which turned out to be fully deterministic
+regardless of input order - shuffling the well list before calling it did nothing, caught
+because all 10 "repeats" came back bit-for-bit identical; fixed with manual random fold
+assignment). Also tested ridge blending on standardized features (the first ridge attempt
+used raw ~11,000-magnitude features, where alpha up to 100 was negligible next to the Gram
+matrix's scale and did nothing - fixed by standardizing before ridge).
+
+**Result: the local ensemble improvement is real and NOT noise.** Across 10 independent
+random splits, the NNLS blend beat Stage 4a alone in **every single repeat** - mean
+improvement -0.69 RMSE (range -0.31 to -0.91), std 0.207, **t-stat ~ -10.6**. Ridge
+(standardized, alpha 0.01-10, all near-identical to each other) gave a slightly smaller but
+equally consistent improvement (-0.60, t-stat ~ -9.6). Regularization doesn't meaningfully
+change the picture - NNLS's non-negativity constraint isn't costing accuracy vs a
+shrinkage-based blend.
+
+**So the CV/LB divergence isn't a "local estimate too imprecise" problem - it's something
+else.** The most likely explanation: per the competition rules, **the public leaderboard
+itself is scored on a representative SAMPLE of the test data**, not the full test set (the
+private leaderboard, which determines final standing, uses a different, larger sample). A
+single public submission's score is therefore itself a noisy point estimate of the true
+private-test performance, not ground truth to calibrate against. Getting one public score
+that lands unfavorably for an approach that is robustly better in repeated local validation
+is exactly the kind of outcome that small-sample public-LB noise would produce.
+
+**Revised recommendation:** the local evidence for the NNLS blend is stronger than the
+single Kaggle submission suggests. Stage 4a alone (public LB 45.196) is still the safer
+choice to lead with given it's the only real submitted number in hand for the blend, but the
+blend is not disqualified by this one result - a second submission (or waiting for the
+private leaderboard) would be the way to actually resolve which is better, since local CV
+has now been shown to disagree with a single public score for a plausible sampling reason,
+not a methodology flaw. Did not resubmit unprompted; this is an open question for JJ to
+decide whether to spend another submission on.
+
+**Not done:** uncertainty estimation (per-prediction confidence) and picking 2 diverse final
+submissions for judging - deferred since which model is actually best is now genuinely
+unresolved between Stage 4a and the Stage 5 blend, not because there's nothing to diversify.
 
 ## Tooling note. reuse the repo's kaggle-ml-loop where it fits
 The `kaggle-ml-loop` skill automates the tabular loop (EDA → recipes → MLflow → champion).

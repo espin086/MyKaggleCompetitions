@@ -28,7 +28,9 @@ reference log (typewell). Lower RMSE wins.
       `SUBMISSIONS.md`. **Best model so far.**
 - [x] Stage 4b 1D CNN sequence model tested (3 attempts) and submitted. real public score
       **72.734** - worse than Stage 4a, kept as an honest documented result (see below)
-- [ ] Stage 5 ensemble - next up
+- [x] Stage 5 ensemble (linear prior + GR-match + Stage 4a, CNN excluded) tested and
+      submitted: real public score **45.997** - a small net regression vs Stage 4a alone,
+      despite a small local held-out improvement. See below - Stage 4a remains recommended.
 
 ## Baseline result (Stage 2. per-well linear prior `tvt ~ MD + Z`)
 
@@ -108,6 +110,33 @@ the hard cap regardless of outcome.
 45.196, better than Stage 2's 80.534. Local (70.18) and public (72.73) track closely, no
 CV/LB divergence - confirming the validation methodology holds even for a negative result.
 **Not the recommended model.** Stage 4a remains the best submitted approach. Full detail in
+`context/05-plan-of-attack.md` and `SUBMISSIONS.md`.
+
+## Stage 5 result (ensemble. tested, submitted, small net regression on public LB)
+
+`src/stage5_ensemble.py` blends `linear_prior` (Stage 2), `windowed_match` (Stage 3), and
+Stage 4a's GB model via non-negative least squares, using leak-free Stage 4a OOF predictions
+(the CNN is excluded, given its 72.734 result). Weights: 0.123 / 0.096 / 0.781 - Stage 4a
+dominates but the other two aren't zeroed out.
+
+**Held-out local RMSE: 52.03** (weights fit on 4/5 of wells, evaluated on the other 1/5) vs
+Stage 4a alone's 52.90 - a real ~1.6% local improvement.
+
+**Submitted: public LB 45.997** vs Stage 4a alone's 45.196 - a small net REGRESSION
+(~1.8% worse), despite the local held-out gain.
+
+**Follow-up (`src/stage5b_blend_variance.py`) - is that gap real or noise?** Repeated the
+held-out split 10 times with genuinely random well-to-fold assignment (a first attempt used
+sklearn's `GroupKFold`, which turned out to be fully deterministic regardless of input
+order - caught because all 10 "repeats" were bit-for-bit identical, fixed with manual random
+fold assignment) and compared NNLS against ridge on standardized features. **Result: the
+local improvement is real, not noise** - the blend beat Stage 4a alone in every single one
+of 10 independent random splits (mean -0.69 RMSE, t-stat ~-10.6). Ridge gave a near-identical,
+equally consistent result. So the CV/LB divergence isn't a "local estimate too imprecise"
+problem - more likely the public leaderboard (scored on a *sample* of the test data, per the
+rules) is itself a noisy point estimate. **Which model is actually best is genuinely
+unresolved** - Stage 4a (45.196) is the safer choice since it's the only real confirmed
+number for that model, but the blend isn't disproven. Full detail in
 `context/05-plan-of-attack.md` and `SUBMISSIONS.md`.
 
 ## Submission notebook
@@ -207,6 +236,7 @@ SUBMISSIONS.md  real leaderboard-score log (Kaggle CLI, not estimated)
 | 2026-07-13 | Pointwise GR/typewell match (Stage 3a) | 74.72 (50-well sample) | not submitted | Worse than Stage 2 - GR alone too noisy for a single-point match. |
 | 2026-07-13 | Windowed GR shape-match + gate (Stage 3b) | 75.06 (50-well sample) | not submitted | Still worse - per-well typewell-fit quality too uniform for a simple gate to key off. |
 | 2026-07-13 | Global gradient-boosted model (Stage 4a) | 52.90 (773-well GroupKFold OOF) | **45.196** | Real improvement, 21% local / 44% public LB reduction over Stage 2. CV and LB gains tracked in the same direction. Combines linear prior + GR-match signal + geometry via a learned model instead of a hand-tuned gate. **Best model so far.** |
-| 2026-07-14 | 1D CNN sequence model (Stage 4b) | 70.18 (30-well GroupKFold, best of 3 attempts) | **72.734** | Worse than Stage 4a. 3 attempts (81.02, 84.67, 70.18) - CNN memorized well identity on the first two; stripping identity features helped but not enough. Local/public tracked closely (no divergence). Honest negative result, documented and submitted anyway. Next: Stage 5 ensemble (Stage 2 + Stage 4a, likely excluding this CNN). |
+| 2026-07-14 | 1D CNN sequence model (Stage 4b) | 70.18 (30-well GroupKFold, best of 3 attempts) | **72.734** | Worse than Stage 4a. 3 attempts (81.02, 84.67, 70.18) - CNN memorized well identity on the first two; stripping identity features helped but not enough. Local/public tracked closely (no divergence). Honest negative result, documented and submitted anyway. |
+| 2026-07-14 | Ensemble: NNLS blend of linear prior + GR-match + Stage 4a (Stage 5) | 52.03 (held-out GroupKFold) | **45.997** | Small net REGRESSION vs Stage 4a alone (45.196), despite a small local held-out gain (52.90 to 52.03). Genuine small CV/LB divergence. Stage 4a alone remains the recommended model. |
 
 Anchor Kanban card: TBD (create on the JJ board via jj-kanban).

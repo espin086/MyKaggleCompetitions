@@ -1,7 +1,7 @@
 {
-  "id": "jjespinoza/rogii-stage4b-cnn-sequence-model",
-  "title": "ROGII Stage 4b - 1D CNN Sequence Model",
-  "code_file": "submission_stage4b.ipynb",
+  "id": "jjespinoza/rogii-stage5-ensemble-blend",
+  "title": "ROGII Stage 5 - Ensemble Blend",
+  "code_file": "submission_stage5.ipynb",
   "language": "python",
   "kernel_type": "notebook",
   "is_private": true,
