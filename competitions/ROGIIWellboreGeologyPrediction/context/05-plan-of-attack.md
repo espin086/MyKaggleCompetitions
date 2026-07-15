@@ -209,27 +209,34 @@ resubmission.
 submissions for judging - deferred since which model is actually best is now genuinely
 unresolved between Stage 4a and the Stage 5 blend, not because there's nothing to diversify.
 
-## Stage 6. K-means cluster features - planned
+## Stage 6. K-means cluster features. TESTED, negative result, not submitted
 
-Add K-means clustering as a preprocessing step on the Stage 4a feature set, then feed the
+Added K-means clustering as a preprocessing step on the Stage 4a feature set, feeding the
 assigned cluster (+ distance to centroid) into the gradient-boosted model as extra features,
 on the hypothesis that clusters capture geological "regimes" (e.g. flat vs faulted terrain)
-that let the model specialize its splits.
+that let the model specialize its splits (`src/stage6_kmeans_clustering.py`).
 
-1. **Elbow analysis first.** Fit KMeans for k = 2..15 on the standardized Stage 4a feature
-   set (leak-free care needed: fit within CV folds, not on the full dataset, for the actual
-   validated model - the elbow plot itself can use the full dataset since it's just
-   descriptive/exploratory, not a trained artifact).
-2. **Search range from the elbow.** Explore k values a few steps below and above the elbow
-   point, not just the elbow itself - the "best" k for downstream supervised performance
-   doesn't always coincide with the unsupervised elbow.
-3. **Tune k with Optuna**, objective = leak-free GroupKFold-by-well OOF RMSE of the
-   downstream `HistGradientBoostingRegressor` (KMeans fit within each training fold only,
-   cluster label passed as a native categorical feature via `categorical_features=`).
-4. **Verify before submitting:** does the best-k-augmented model actually beat Stage 4a's
-   52.90 local / 45.196 public LB? If yes, submit and confirm with a real score. If no,
-   document the negative result anyway - it goes in the experiment log either way, per the
-   standing rule that every real attempt gets logged, win or lose.
+**Elbow analysis** (k=2..15, standardized 11-feature set, full dataset, descriptive):
+inertia drops smoothly from 31.3M (k=2) to 14.8M (k=15) with no sharp knee - a soft elbow at
+**k=6** via the kneedle max-perpendicular-distance heuristic. Search range set to k in [3, 11]
+(elbow -3 to elbow +5).
+
+**Optuna tuning** (10 trials, TPE sampler, 3-fold GroupKFold-by-well objective for speed,
+KMeans fit within each training fold only - leak-free): every single trial across k=3..11
+scored WORSE than the no-cluster baseline (53.25-53.92 vs baseline). Best found: **k=8**,
+3-fold RMSE 53.25.
+
+**Final honest 5-fold confirmation of k=8: RMSE 53.05** vs Stage 4a's no-cluster baseline of
+**52.90** - a small but consistent REGRESSION (+0.14), matching every one of the 10 Optuna
+trials that also came in worse. Cluster label + distance-to-centroid feature the same
+`HistGradientBoostingRegressor` already effectively partitions via its own tree splits -
+adding an explicit cluster assignment is redundant information, not new signal.
+
+**Not submitted to Kaggle** - no local evidence of improvement across the entire tested k
+range, so a real submission would be spending one of 5 daily submissions to confirm what the
+leak-free local CV already shows clearly. Logged here and in the experiment log per the
+standing rule that every real attempt gets recorded, win or lose. Runtime: ~11.4 min total
+(feature build + elbow scan + baseline + 10 Optuna trials + final confirmation).
 
 ## Tooling note. reuse the repo's kaggle-ml-loop where it fits
 The `kaggle-ml-loop` skill automates the tabular loop (EDA → recipes → MLflow → champion).

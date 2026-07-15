@@ -31,6 +31,10 @@ reference log (typewell). Lower RMSE wins.
 - [x] Stage 5 ensemble (linear prior + GR-match + Stage 4a, CNN excluded) tested and
       submitted: real public score **45.997** - a small net regression vs Stage 4a alone,
       despite a small local held-out improvement. See below - Stage 4a remains recommended.
+- [x] Stage 6 K-means cluster features tested (elbow + Optuna-tuned k): **negative result**,
+      53.05 vs Stage 4a's 52.90 baseline - not submitted, logged per the standing rule.
+- [x] Stage 7 in progress: studying an external public kernel
+      (`lightningv08/rogii-dual-pipeline-self-verifying`) for reusable ideas.
 
 ## Baseline result (Stage 2. per-well linear prior `tvt ~ MD + Z`)
 
@@ -139,6 +143,22 @@ unresolved** - Stage 4a (45.196) is the safer choice since it's the only real co
 number for that model, but the blend isn't disproven. Full detail in
 `context/05-plan-of-attack.md` and `SUBMISSIONS.md`.
 
+## Stage 6 result (K-means cluster features. tested, negative, not submitted)
+
+`src/stage6_kmeans_clustering.py` adds K-means cluster label + distance-to-centroid as extra
+features on top of Stage 4a's feature set. Elbow analysis (k=2..15) found a soft elbow at
+**k=6**; Optuna (10 trials, TPE) searched k in [3, 11] using leak-free 3-fold GroupKFold
+(KMeans fit within each training fold only), then the best k got an honest 5-fold
+confirmation.
+
+**Every single trial scored worse than the no-cluster baseline.** Best k=8: final 5-fold OOF
+RMSE **53.05** vs Stage 4a's **52.90** - a small but consistent regression. The gradient-
+boosted model's own tree splits already capture whatever structure clustering would add;
+an explicit cluster assignment is redundant, not new information. **Not submitted** - no
+local evidence of improvement anywhere in the tested range would make spending a submission
+worthwhile. Logged here and in the experiment log per the standing rule that every real
+attempt gets recorded, win or lose. Full detail in `context/05-plan-of-attack.md`.
+
 ## Submission notebook
 
 `notebooks/submission.ipynb` is the actual submission artifact for this **Code Competition**
@@ -237,6 +257,7 @@ SUBMISSIONS.md  real leaderboard-score log (Kaggle CLI, not estimated)
 | 2026-07-13 | Windowed GR shape-match + gate (Stage 3b) | 75.06 (50-well sample) | not submitted | Still worse - per-well typewell-fit quality too uniform for a simple gate to key off. |
 | 2026-07-13 | Global gradient-boosted model (Stage 4a) | 52.90 (773-well GroupKFold OOF) | **45.196** | Real improvement, 21% local / 44% public LB reduction over Stage 2. CV and LB gains tracked in the same direction. Combines linear prior + GR-match signal + geometry via a learned model instead of a hand-tuned gate. **Best model so far.** |
 | 2026-07-14 | 1D CNN sequence model (Stage 4b) | 70.18 (30-well GroupKFold, best of 3 attempts) | **72.734** | Worse than Stage 4a. 3 attempts (81.02, 84.67, 70.18) - CNN memorized well identity on the first two; stripping identity features helped but not enough. Local/public tracked closely (no divergence). Honest negative result, documented and submitted anyway. |
-| 2026-07-14 | Ensemble: NNLS blend of linear prior + GR-match + Stage 4a (Stage 5) | 52.03 (held-out GroupKFold) | **45.997** | Small net REGRESSION vs Stage 4a alone (45.196), despite a small local held-out gain (52.90 to 52.03). Genuine small CV/LB divergence. Stage 4a alone remains the recommended model. |
+| 2026-07-14 | Ensemble: NNLS blend of linear prior + GR-match + Stage 4a (Stage 5) | 52.03 (held-out GroupKFold) | **45.997** | Small net REGRESSION vs Stage 4a alone (45.196), despite a small local held-out gain (52.90 to 52.03). Genuine small CV/LB divergence. Stage 4a alone remains the recommended model. Repeated-CV follow-up (`src/stage5b_blend_variance.py`) showed the blend actually beats Stage 4a in 10/10 random splits (t-stat ~-10.6) - resubmitting confirmed the public score is bit-for-bit stable, ruling out per-submission noise. Which model is truly best remains unresolved; see `SUBMISSIONS.md`. |
+| 2026-07-14 | K-means cluster features (Stage 6): cluster label + distance-to-centroid added to Stage 4a's feature set, k tuned via Optuna around the elbow (k=6) | 53.05 (best k=8, 5-fold GroupKFold OOF) | not submitted | Worse than Stage 4a's no-cluster baseline (52.90) - every one of 10 Optuna trials across k=3-11 scored worse. HistGradientBoostingRegressor's own tree splits already capture whatever structure clustering would add; an explicit cluster label is redundant, not new signal. No local evidence of improvement anywhere in the tested range, so not submitted - logged per the standing rule that every real attempt gets recorded. |
 
 Anchor Kanban card: TBD (create on the JJ board via jj-kanban).
