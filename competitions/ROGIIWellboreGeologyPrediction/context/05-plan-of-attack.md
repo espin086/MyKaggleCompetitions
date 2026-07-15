@@ -209,6 +209,28 @@ resubmission.
 submissions for judging - deferred since which model is actually best is now genuinely
 unresolved between Stage 4a and the Stage 5 blend, not because there's nothing to diversify.
 
+## Stage 6. K-means cluster features - planned
+
+Add K-means clustering as a preprocessing step on the Stage 4a feature set, then feed the
+assigned cluster (+ distance to centroid) into the gradient-boosted model as extra features,
+on the hypothesis that clusters capture geological "regimes" (e.g. flat vs faulted terrain)
+that let the model specialize its splits.
+
+1. **Elbow analysis first.** Fit KMeans for k = 2..15 on the standardized Stage 4a feature
+   set (leak-free care needed: fit within CV folds, not on the full dataset, for the actual
+   validated model - the elbow plot itself can use the full dataset since it's just
+   descriptive/exploratory, not a trained artifact).
+2. **Search range from the elbow.** Explore k values a few steps below and above the elbow
+   point, not just the elbow itself - the "best" k for downstream supervised performance
+   doesn't always coincide with the unsupervised elbow.
+3. **Tune k with Optuna**, objective = leak-free GroupKFold-by-well OOF RMSE of the
+   downstream `HistGradientBoostingRegressor` (KMeans fit within each training fold only,
+   cluster label passed as a native categorical feature via `categorical_features=`).
+4. **Verify before submitting:** does the best-k-augmented model actually beat Stage 4a's
+   52.90 local / 45.196 public LB? If yes, submit and confirm with a real score. If no,
+   document the negative result anyway - it goes in the experiment log either way, per the
+   standing rule that every real attempt gets logged, win or lose.
+
 ## Tooling note. reuse the repo's kaggle-ml-loop where it fits
 The `kaggle-ml-loop` skill automates the tabular loop (EDA → recipes → MLflow → champion).
 It fits Stages 1. 2 (EDA + the linear/tabular baseline) but **not** the sequence/DTW stages,
