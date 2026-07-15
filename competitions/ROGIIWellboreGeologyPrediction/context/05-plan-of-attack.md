@@ -238,6 +238,68 @@ leak-free local CV already shows clearly. Logged here and in the experiment log 
 standing rule that every real attempt gets recorded, win or lose. Runtime: ~11.4 min total
 (feature build + elbow scan + baseline + 10 Optuna trials + final confirmation).
 
+## Stage 7. Guarded physical override (from an external public kernel). TESTED, submitted,
+## confirmed inert on the current test set
+
+Pulled and studied `lightningv08/rogii-dual-pipeline-self-verifying` (see
+`context/external-kernels/README.md`) - a public kernel using physics trackers + LightGBM/
+CatBoost + Ridge, finishing with a **guarded physical override**: exact TVT reconstruction
+from a well's formation-contact columns (`tvt_from_contacts`), applied to a test well ONLY
+if that well's ID also appears in the train set AND the reconstruction self-verifies against
+the test well's own known prefix (interpolated by MD, RMSE < 1 ft) at runtime.
+
+**Extracted and adapted** (`src/stage7_guarded_override.py`, `notebooks/submission_stage7.ipynb`):
+layered the same guarded-override logic on top of our own best confirmed model (Stage 4a)
+instead of their pipeline. By construction this can only help or be a no-op - it never
+overrides without passing self-verification first, so it's safe to try regardless of outcome.
+
+**Local sanity check:** fired correctly on all 3 of our local visible test wells (which are
+known train-copies per the data dictionary) - verify RMSE ~0.01 ft, override RMSE ~0.005 ft
+vs true TVT (near-exact reconstruction, as expected for wells we know overlap).
+
+**Submitted and confirmed: public LB 45.196 - bit-for-bit identical to Stage 4a alone.** The
+guard did NOT fire on the real hidden test set: no train/test well-ID overlap exists in the
+current (post-"Private Test Update and Rescore", see `context/04-discussion-intel.md`)
+hidden test data. This is a real, confirmed negative result for this specific exploit on
+this competition's current data - not a bug in the guard logic (which is proven correct by
+the local sanity check), and it cost nothing to verify since a safe-by-construction override
+that doesn't fire is a no-op, not a regression.
+
+**Not pursued further from the source kernel at this point:** the full particle-filter/
+beam-search tracker stack remains untried, out of scope for the time available.
+
+## Stage 8. Cross-well spatial prior (`FormationPlaneKNN`). TESTED, submitted, real local
+## improvement, ~noise-level on public LB
+
+The one genuinely novel signal source left untried: every prior stage treats each well in
+complete isolation. `FormationPlaneKNN` (from the same source kernel as Stage 7) fits a
+locally-weighted plane of each formation's depth vs (X, Y) using the K=10 nearest OTHER
+wells (inverse-distance weighted), giving a cross-well estimate of what a formation depth
+"should be" at any location - genuinely new information (`src/stage8_spatial_prior.py`,
+`notebooks/submission_stage8.ipynb`).
+
+**Attempt 1 (unguarded):** the raw plane-fit estimate alone scored RMSE **22,032** -
+catastrophically unstable. Diagnosed on well `09ec2ca9`: when the K neighbor wells happen to
+be near-collinear in (X, Y), the local weighted least-squares system is ill-conditioned and
+produces wildly exploded extrapolated coefficients (raw estimate -51,563 ft against a true
+value of ~11,051 ft).
+
+**Attempt 2 (guarded, informed fix):** fall back to the already-trusted `linear_prior`
+(Stage 2) for any row whose spatial estimate disagrees with it by more than 200 ft - mirrors
+the Stage 7 guarded-override pattern of never trusting an unstable projection blindly. Raw
+feature alone dropped to a sane RMSE **70**. Added as a 12th feature to Stage 4a's model:
+**5-fold GroupKFold OOF RMSE 52.57 vs Stage 4a's 52.90 baseline - improved in EVERY single
+fold**, not just on average. A real, reinforcing local signal (per `verify-with-real-data.md`,
+worth a submission after a consistent reinforcing result).
+
+**Submitted: public LB 45.221** vs Stage 4a alone's **45.196** - a tiny (+0.025) difference,
+essentially indistinguishable from noise given Stage 5's earlier finding that the public
+leaderboard is scored against a fixed sample (not literally random per-submission, but a
+gap this small, ~20x smaller than Stage 5's 0.8-point divergence, doesn't clear the bar for
+"real signal" the way Stage 5's local repeated-CV evidence did). Neither a clear win nor a
+clear loss - not adopted as the new best model, but the feature-engineering pattern (KNN
+spatial imputation with a stability guard) is sound and reusable.
+
 ## Tooling note. reuse the repo's kaggle-ml-loop where it fits
 The `kaggle-ml-loop` skill automates the tabular loop (EDA → recipes → MLflow → champion).
 It fits Stages 1. 2 (EDA + the linear/tabular baseline) but **not** the sequence/DTW stages,
