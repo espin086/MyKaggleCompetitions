@@ -1,7 +1,7 @@
 {
-  "id": "jjespinoza/rogii-stage-5-ensemble-blend",
-  "title": "ROGII Stage 5 - Ensemble Blend",
-  "code_file": "submission_stage5.ipynb",
+  "id": "jjespinoza/rogii-stage-8-spatial-prior",
+  "title": "ROGII Stage 8 - Cross-Well Spatial Prior",
+  "code_file": "submission_stage8.ipynb",
   "language": "python",
   "kernel_type": "notebook",
   "is_private": true,

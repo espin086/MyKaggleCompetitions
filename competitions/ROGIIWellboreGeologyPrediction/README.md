@@ -33,8 +33,17 @@ reference log (typewell). Lower RMSE wins.
       despite a small local held-out improvement. See below - Stage 4a remains recommended.
 - [x] Stage 6 K-means cluster features tested (elbow + Optuna-tuned k): **negative result**,
       53.05 vs Stage 4a's 52.90 baseline - not submitted, logged per the standing rule.
-- [x] Stage 7 in progress: studying an external public kernel
-      (`lightningv08/rogii-dual-pipeline-self-verifying`) for reusable ideas.
+- [x] Stage 7 guarded physical override (adapted from a public kernel) tested and submitted:
+      real public score **45.196** - bit-for-bit identical to Stage 4a alone. The guard is
+      safe by construction and fired correctly on local sanity-check wells, but did NOT fire
+      on the real hidden test set (no train/test well-ID overlap currently exists). Confirmed
+      negative for this specific exploit; cost nothing since it never regresses.
+- [x] Stage 8 cross-well spatial prior (`FormationPlaneKNN`, adapted from the same public
+      kernel) tested and submitted: real public score **45.221** - a tiny, ~noise-level
+      difference from Stage 4a alone (45.196), despite a real local improvement in every
+      GroupKFold fold (52.57 vs 52.90). First stage to use ANY cross-well information. A
+      real bug (catastrophic unstable extrapolation, RMSE 22,032 alone) was diagnosed and
+      fixed with a guard before this result. Not adopted as the new best model.
 
 ## Baseline result (Stage 2. per-well linear prior `tvt ~ MD + Z`)
 
@@ -159,6 +168,49 @@ local evidence of improvement anywhere in the tested range would make spending a
 worthwhile. Logged here and in the experiment log per the standing rule that every real
 attempt gets recorded, win or lose. Full detail in `context/05-plan-of-attack.md`.
 
+## Stage 7 result (guarded physical override, adapted from a public kernel. tested, confirmed inert)
+
+Pulled and studied `lightningv08/rogii-dual-pipeline-self-verifying`
+(`context/external-kernels/README.md`) and extracted its **guarded physical override**:
+exact TVT reconstruction from a well's formation-contact columns, applied to a test well
+only if that well's ID also appears in train AND the reconstruction self-verifies against
+the test well's own known prefix at runtime (RMSE < 1 ft). By construction this can only
+help or be a no-op - it never overrides without passing self-verification first.
+
+`src/stage7_guarded_override.py` fired correctly on all 3 local visible test wells (known
+train-copies): verify RMSE ~0.01 ft, override RMSE ~0.005 ft vs true TVT.
+
+**Submitted: public LB 45.196 - bit-for-bit identical to Stage 4a alone.** The guard did NOT
+fire on the real hidden test set - no train/test well-ID overlap exists in the current
+(post-rescore) hidden test data. A real, confirmed negative result for this specific exploit
+on this competition's current data; not a bug (proven correct by the local sanity check),
+and it cost nothing to check since a safe-by-construction override that doesn't fire is a
+no-op. Full detail in `context/05-plan-of-attack.md` and `SUBMISSIONS.md`.
+
+## Stage 8 result (cross-well spatial prior, adapted from a public kernel. tested, ~noise-level)
+
+The one genuinely novel signal left untried: every prior stage treats each well in complete
+isolation. `FormationPlaneKNN` (same source kernel as Stage 7) fits a locally-weighted plane
+of each formation's depth vs (X, Y) using the K=10 nearest OTHER wells, giving a cross-well
+estimate of what a formation depth "should be" at any location
+(`src/stage8_spatial_prior.py`).
+
+**Attempt 1 (unguarded):** raw plane-fit estimate alone scored RMSE **22,032** -
+catastrophically unstable. Diagnosed on well `09ec2ca9`: near-collinear neighbor wells make
+the local weighted least-squares system ill-conditioned, producing wildly exploded
+extrapolations (raw estimate -51,563 ft vs true ~11,051 ft).
+
+**Attempt 2 (guarded fix):** fall back to `linear_prior` for any row whose spatial estimate
+disagrees with it by more than 200 ft. Raw feature alone dropped to a sane RMSE **70**.
+Added as a 12th feature to Stage 4a: **5-fold GroupKFold OOF RMSE 52.57 vs 52.90 baseline -
+improved in EVERY fold**, a real, reinforcing local signal.
+
+**Submitted: public LB 45.221** vs Stage 4a alone's **45.196** - a tiny (+0.025) difference,
+~20x smaller than Stage 5's confirmed-real 0.8-point divergence, and consistent with noise
+rather than a real effect. Neither a clear win nor loss - not adopted as the new best model,
+but the guarded-KNN feature-engineering pattern is sound and reusable. Full detail in
+`context/05-plan-of-attack.md` and `SUBMISSIONS.md`.
+
 ## Submission notebook
 
 `notebooks/submission.ipynb` is the actual submission artifact for this **Code Competition**
@@ -259,5 +311,7 @@ SUBMISSIONS.md  real leaderboard-score log (Kaggle CLI, not estimated)
 | 2026-07-14 | 1D CNN sequence model (Stage 4b) | 70.18 (30-well GroupKFold, best of 3 attempts) | **72.734** | Worse than Stage 4a. 3 attempts (81.02, 84.67, 70.18) - CNN memorized well identity on the first two; stripping identity features helped but not enough. Local/public tracked closely (no divergence). Honest negative result, documented and submitted anyway. |
 | 2026-07-14 | Ensemble: NNLS blend of linear prior + GR-match + Stage 4a (Stage 5) | 52.03 (held-out GroupKFold) | **45.997** | Small net REGRESSION vs Stage 4a alone (45.196), despite a small local held-out gain (52.90 to 52.03). Genuine small CV/LB divergence. Stage 4a alone remains the recommended model. Repeated-CV follow-up (`src/stage5b_blend_variance.py`) showed the blend actually beats Stage 4a in 10/10 random splits (t-stat ~-10.6) - resubmitting confirmed the public score is bit-for-bit stable, ruling out per-submission noise. Which model is truly best remains unresolved; see `SUBMISSIONS.md`. |
 | 2026-07-14 | K-means cluster features (Stage 6): cluster label + distance-to-centroid added to Stage 4a's feature set, k tuned via Optuna around the elbow (k=6) | 53.05 (best k=8, 5-fold GroupKFold OOF) | not submitted | Worse than Stage 4a's no-cluster baseline (52.90) - every one of 10 Optuna trials across k=3-11 scored worse. HistGradientBoostingRegressor's own tree splits already capture whatever structure clustering would add; an explicit cluster label is redundant, not new signal. No local evidence of improvement anywhere in the tested range, so not submitted - logged per the standing rule that every real attempt gets recorded. |
+| 2026-07-15 | Guarded physical override (Stage 7): exact TVT-from-formation-contacts reconstruction, self-verified before applying, layered on Stage 4a - adapted from a public kernel | n/a (post-processing override) | **45.196** (identical to Stage 4a) | Safe-by-construction guard fired correctly on local sanity-check wells but did NOT fire on the real hidden test set - no train/test well-ID overlap currently exists. Confirmed negative for this exploit, zero cost since it never regresses. |
+| 2026-07-15 | Cross-well spatial prior (Stage 8): `FormationPlaneKNN` formation-depth plane fit from K=10 nearest wells, guarded fallback to `linear_prior`, added as a Stage 4a feature - adapted from the same public kernel | 52.57 (5-fold GroupKFold OOF, every fold improved) | **45.221** | Real, consistent local improvement (-0.33 vs 52.90 baseline, every fold) but tiny (+0.025) ~noise-level difference on public LB - not clearly better or worse. First stage to use cross-well information. Fixed a real bug along the way: an unguarded attempt was catastrophically unstable (RMSE 22,032 alone) from ill-conditioned local plane fits. |
 
 Anchor Kanban card: TBD (create on the JJ board via jj-kanban).
